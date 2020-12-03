@@ -4,7 +4,7 @@ import { GridRow } from './GridRow';
 import { Food, Mouse, DeadMouse, Bug, BlindMouse } from './Food';
 import { Venom } from './Venom';
 
-export interface IGameProps { gridSize: number; }
+export interface IGameProps { gridSize: number; portals: boolean; }
 
 export interface IGameState {
     foodList: (Mouse | Bug | DeadMouse | BlindMouse)[];
@@ -37,7 +37,7 @@ export default class Game extends React.Component<IGameProps, IGameState> {
         const bug = new Bug(this.getRandomPositionInGrid(gridSize));
         const deadMouse = new DeadMouse(this.getRandomPositionInGrid(gridSize));
         const blindMouse = new BlindMouse(this.getRandomPositionInGrid(gridSize));
-        const foodList = [ deadMouse ];        
+        const foodList = [ deadMouse, blindMouse, mouse, bug ];        
 
         const currentFood = this.pickRandomFoodFromList(foodList, gridSize);
 
@@ -55,9 +55,12 @@ export default class Game extends React.Component<IGameProps, IGameState> {
         return { x: x, y: y };
     }
 
-    collision = (snakeHead : Position, snake: Position[], gridSize: number) => {
+    collision = (snakeHead : Position, snake: Position[], gridSize: number, portals: boolean) => {
+
+        if(!portals && (snakeHead.x == gridSize || snakeHead.y == gridSize)) return true;
+
         if ((snake.some(snakePart => snakePart.x == snakeHead.x && snakePart.y == snakeHead.y)) || 
-            (snakeHead.x == gridSize || snakeHead.y == gridSize) ||
+            //(snakeHead.x == gridSize || snakeHead.y == gridSize) ||
             (snakeHead.x < 0 || snakeHead.y < 0)
         ) return true;
 
@@ -89,29 +92,35 @@ export default class Game extends React.Component<IGameProps, IGameState> {
         venom.move(); return true;
     }
 
-    handleMoves = () => {
-        const { gridSize } = this.props;
-        const { direction, snake, gameActive, foodList } = this.state;
-        let { score, currentFood, gameSpeed, venom } = this.state;
-
-        if (!gameActive) return;
-
+    getNewSnakeHead = (direction: string, snake: Position[], gridSize: number, portals: boolean) => {
         const currentSnakeHead = snake[snake.length - 1];
 
         let x = currentSnakeHead.x;
         let y = currentSnakeHead.y;
 
         switch(direction) {
-            case "up": y--; break;
-            case "down": y++; break;
-            case "left": x--; break;
-            case "right": x++; break;
+            case "up": (portals && y == 0) ? y = gridSize - 1 : y--; break;
+            case "down": (portals && y == gridSize - 1) ? y = 0 : y++; break;
+            case "left": (portals && x == 0) ? x = gridSize - 1 : x--; break;
+            case "right": (portals && x == gridSize - 1) ? x = 0 : x++; break;
         }
 
         const newSnakeHead : Position = {x: x, y: y};
+        return newSnakeHead;
+    }
+
+    handleMoves = () => {
+        const { gridSize, portals } = this.props;
+        const { direction, snake, gameActive, foodList } = this.state;
+        let { score, currentFood, gameSpeed, venom } = this.state;
+
+        if (!gameActive) return;
+
+        //get new snake head 
+        const newSnakeHead = this.getNewSnakeHead(direction, snake, gridSize, portals);
 
         //check collision
-        if (this.collision(newSnakeHead, snake, gridSize)) { this.setState({gameActive: false}); return; };
+        if (this.collision(newSnakeHead, snake, gridSize, portals)) { this.setState({gameActive: false}); return; };
 
         //push new head onto snake array
         snake.push(newSnakeHead);

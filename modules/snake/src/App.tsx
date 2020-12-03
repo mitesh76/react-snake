@@ -5,7 +5,7 @@ import Game from './one-player/Game';
 export default class App extends React.Component<{}> {
     
     render() {
-        return <Game gridSize={30}></Game>
+        return <Game gridSize={30} portals={true}></Game>
     }
 
 }
