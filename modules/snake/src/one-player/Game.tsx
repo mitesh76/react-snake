@@ -1,13 +1,15 @@
 import * as React from 'react';
 import { Position } from './position';
 import { GridRow } from './GridRow';
+import { Food, Mouse, DeadMouse, Bug, BlindMouse } from './Food';
 
 export interface IGameProps { gridSize: number; }
 
 export interface IGameState {
+    foodList: (Mouse | Bug | DeadMouse | BlindMouse)[];
     score: number;
     snake: Position[];
-    foodPosition: Position;
+    currentFood: Mouse | Bug | DeadMouse | BlindMouse;
     direction: string; // Tried to use an enum for directions but this had a performance impact (slight lag after key press). String seems to be better performant.
     gameSpeed: number;
     gameActive: boolean;
@@ -20,11 +22,27 @@ export default class Game extends React.Component<IGameProps, IGameState> {
         document.addEventListener("keydown", this.handleKeyDown, false); //Event listener for key press
     }
     
+    pickRandomFoodFromList = (list: (Mouse | Bug | DeadMouse | BlindMouse)[]) => {
+        const rand = Math.floor(Math.random() * (list.length));
+        const food = list[rand];
+        food.position = this.getRandomPositionInGrid();
+        return food;
+    }
+
     initNewGame = () => {
+        // generate list of food items
+        const mouse = new Mouse(this.getRandomPositionInGrid());
+        const bug = new Bug(this.getRandomPositionInGrid());
+        const deadMouse = new DeadMouse(this.getRandomPositionInGrid());
+        const blindMouse = new BlindMouse(this.getRandomPositionInGrid());
+        const foodList = [ mouse, bug, deadMouse, blindMouse ];        
+
+        const currentFood = this.pickRandomFoodFromList(foodList);
+
         const snake : Position[] = [{x: 0, y: 0}, {x: 0, y: 1}, {x: 0, y: 2}];
-        const foodPosition : Position = this.getRandomPositionInGrid();
+        
         const speed : number = 200;
-        this.setState({score: 0, snake: snake, foodPosition: foodPosition, direction: "down", gameSpeed: speed, gameActive: true});
+        this.setState({score: 0, snake: snake, currentFood: currentFood, direction: "down", gameSpeed: speed, gameActive: true, foodList: foodList});
         
         setInterval(this.handleMoves, speed); //Start ticks
     }
@@ -34,11 +52,6 @@ export default class Game extends React.Component<IGameProps, IGameState> {
         const x = Math.floor(Math.random() * gridSize) //random number between 0 and gridSize
         const y = Math.floor(Math.random() * gridSize) //random number between 0 and gridSize
         return { x: x, y: y };
-    }
-
-    getRandomDirection = () => {
-        const directions : string[] = ["up","down","left","right"];
-        return directions[Math.floor(Math.random() * 4)];
     }
 
     collision = (snakeHead : Position) => {
@@ -55,30 +68,15 @@ export default class Game extends React.Component<IGameProps, IGameState> {
     }
 
     eat = (newSnakeHead : Position) => {
-        const { foodPosition } = this.state;
-        if (newSnakeHead.x == foodPosition.x && newSnakeHead.y == foodPosition.y) return true;
+        const { currentFood } = this.state;
+        if (newSnakeHead.x == currentFood.position.x && newSnakeHead.y == currentFood.position.y) return true;
         return false;
     }
 
-    moveFood = (foodPosition: Position) => {
-        const {gridSize} = this.props;
-        const direction: string = this.getRandomDirection();
-        switch(direction) {
-            case "up": 
-                if(foodPosition.y > 0) foodPosition.y--; break;
-            case "down": 
-                if(foodPosition.y < gridSize - 1) foodPosition.y++; break;
-            case "left": 
-                if(foodPosition.x > 0) foodPosition.x--; break;
-            case "right": 
-                if(foodPosition.x < gridSize - 1) foodPosition.x++; break;
-        }
-    }
-
     handleMoves = () => {
-
-        const { direction, snake, gameActive } = this.state;
-        let { score, foodPosition, gameSpeed } = this.state;
+        const { gridSize } = this.props;
+        const { direction, snake, gameActive, foodList } = this.state;
+        let { score, currentFood, gameSpeed } = this.state;
 
         if (!gameActive) return;
 
@@ -104,22 +102,17 @@ export default class Game extends React.Component<IGameProps, IGameState> {
 
         //check if snake can eat food. if yes increase score, reposition new food and allow snake to grow by not shifting array. else shift array.
         if (this.eat(newSnakeHead)) {
-            score++;
-            foodPosition = this.getRandomPositionInGrid();
-
-            // Increase game speed - TODO
-            // gameSpeed = Math.floor(gameSpeed * 1.1);
-            // console.log("eat", gameSpeed);
-            // setInterval(this.moveSnake, gameSpeed);
+            score = score + currentFood.value;
+            currentFood = this.pickRandomFoodFromList(foodList);
         }
         else {
             snake.shift();
         }
 
         //move food
-        this.moveFood(foodPosition);
-
-        this.setState({snake : snake, score : score, foodPosition : foodPosition, gameSpeed: gameSpeed});
+        currentFood.move(gridSize);
+        
+        this.setState({snake : snake, score : score, currentFood : currentFood, gameSpeed: gameSpeed});
     }
 
     handleKeyDown = (e: KeyboardEvent) => {
@@ -136,12 +129,12 @@ export default class Game extends React.Component<IGameProps, IGameState> {
     }
     
     public render() {
-        const { score, snake, foodPosition, gameActive, direction } = this.state;
+        const { score, snake, currentFood, gameActive, direction } = this.state;
         const { gridSize } = this.props;
 
         let gridRows = [];
         for (let rowIndex = 0; rowIndex < gridSize; rowIndex++) { 
-            gridRows.push(GridRow(gridSize, snake, rowIndex, foodPosition, direction)) 
+            gridRows.push(GridRow(gridSize, snake, rowIndex, currentFood, direction)) 
         }
 
         return <React.Fragment>
@@ -149,9 +142,9 @@ export default class Game extends React.Component<IGameProps, IGameState> {
                 <div className="game-header">
                     <h1>{gameActive ? "SNAKE!" : "GAME OVER!"}</h1>
                     <span className="score">Score: {score}</span>
+                    <span className="score"> {currentFood.name}</span>
                 </div>
                 <table className="snake-table"><tbody>{gridRows}</tbody></table></div>
         </React.Fragment>
     }
-
 }
