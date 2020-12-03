@@ -8,7 +8,7 @@ export interface IGameState {
     score: number;
     snake: Position[];
     foodPosition: Position;
-    direction: string;
+    direction: string; // Tried to use an enum for directions but this had a performance impact (slight lag after key press). String seems to be better performant.
     gameSpeed: number;
     gameActive: boolean;
 }
@@ -26,7 +26,7 @@ export default class Game extends React.Component<IGameProps, IGameState> {
         const speed : number = 200;
         this.setState({score: 0, snake: snake, foodPosition: foodPosition, direction: "down", gameSpeed: speed, gameActive: true});
         
-        setInterval(this.moveSnake, speed); //Start ticks
+        setInterval(this.handleMoves, speed); //Start ticks
     }
     
     getRandomPositionInGrid = () => {
@@ -34,6 +34,11 @@ export default class Game extends React.Component<IGameProps, IGameState> {
         const x = Math.floor(Math.random() * gridSize) //random number between 0 and gridSize
         const y = Math.floor(Math.random() * gridSize) //random number between 0 and gridSize
         return { x: x, y: y };
+    }
+
+    getRandomDirection = () => {
+        const directions : string[] = ["up","down","left","right"];
+        return directions[Math.floor(Math.random() * 4)];
     }
 
     collision = (snakeHead : Position) => {
@@ -55,7 +60,22 @@ export default class Game extends React.Component<IGameProps, IGameState> {
         return false;
     }
 
-    moveSnake = () => {
+    moveFood = (foodPosition: Position) => {
+        const {gridSize} = this.props;
+        const direction: string = this.getRandomDirection();
+        switch(direction) {
+            case "up": 
+                if(foodPosition.y > 0) foodPosition.y--; break;
+            case "down": 
+                if(foodPosition.y < gridSize - 1) foodPosition.y++; break;
+            case "left": 
+                if(foodPosition.x > 0) foodPosition.x--; break;
+            case "right": 
+                if(foodPosition.x < gridSize - 1) foodPosition.x++; break;
+        }
+    }
+
+    handleMoves = () => {
 
         const { direction, snake, gameActive } = this.state;
         let { score, foodPosition, gameSpeed } = this.state;
@@ -95,6 +115,9 @@ export default class Game extends React.Component<IGameProps, IGameState> {
         else {
             snake.shift();
         }
+
+        //move food
+        this.moveFood(foodPosition);
 
         this.setState({snake : snake, score : score, foodPosition : foodPosition, gameSpeed: gameSpeed});
     }
