@@ -1,7 +1,7 @@
 {
-  "name": "range_forecaster",
+  "name": "snake",
   "version": "1.0.0",
-  "description": "range_forecaster",
+  "description": "snake",
   "repository": {},
   "main": "index.js",
   "scripts": {
